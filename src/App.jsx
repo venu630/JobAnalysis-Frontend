@@ -13,6 +13,7 @@ import {
 import Dashboard from './pages/Dashboard';
 import Navbar from './utils/Navbar';
 import DataVisualization from './pages/DataVisualization';
+import KNNModel from './algorithms/KNNModel';
 
 function App() {
 
@@ -29,7 +30,8 @@ function App() {
     <Navbar/>
       <Routes>
         <Route exact path="/" element={<Dashboard />} />
-      <Route exact path="/data_visualization" element={<DataVisualization />} />
+        <Route exact path="/data_visualization" element={<DataVisualization />} />
+        <Route exact path="/algorithms/knn_classification" element={<KNNModel />} />
       </Routes>
     </>
   );

@@ -89,7 +89,7 @@ export default function VerticalBar() {
 
     const handleDownload = () => {
         const link = document.createElement('a');
-        link.href = document.getElementsByTagName('canvas')[2].toDataURL('image/png');
+        link.href = document.getElementsByTagName('canvas')[3].toDataURL('image/png');
         link.download = 'salary_distribution_chart.png';
         link.click();
     };
