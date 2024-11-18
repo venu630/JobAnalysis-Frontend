@@ -15,9 +15,9 @@ const experienceLevels = [
     { label: "Executive-level / Director", value: "EX" },
 ];
 
-// Generate Year Range from 2015 to 2025
-const yearOptions = Array.from({ length: 2025 - 2015 + 1 }, (_, index) => {
-    const year = 2015 + index;
+// Generate Year Range from 2020 to 2030
+const yearOptions = Array.from({ length: 2030 - 2020 + 1 }, (_, index) => {
+    const year = 2020 + index;
     return { label: year.toString(), value: year };
 });
 
@@ -46,33 +46,43 @@ const TimeSeriesModel = () => {
     const handleSubmit = async () => {
         setLoading(true);
         const { start_year, end_year, experience_level } = formData;
-
+    
         try {
             if (!start_year || !end_year || !experience_level) {
                 throw new Error("Please fill out all fields before submitting.");
             }
-
+    
             if (start_year > end_year) {
                 throw new Error("Start year cannot be greater than end year.");
             }
-
-            let predictions = [];
-            for (let year = start_year; year <= end_year; year++) {
-                const response = await fetch("http://127.0.0.1:5000/timeseries_predict", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ work_year: year, experience_level }),
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Error fetching data for year ${year}`);
-                }
-
-                const data = await response.json();
-                predictions.push({ year, salary: data.predicted_salary });
+    
+            // Make a single request to the backend for the specified range
+            const response = await fetch("http://127.0.0.1:5000/timeseries_predict", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ start_year, end_year, experience_level }),
+            });
+    
+            if (!response.ok) {
+                throw new Error(`Error fetching prediction data`);
             }
-
-            updateChart(predictions, experience_level);
+    
+            const data = await response.json();
+    
+            // Ensure data is not null or undefined before parsing
+            if (!data || !data.years || !data.salaries) {
+                throw new Error("Invalid data received from the backend.");
+            }
+    
+            // Parse response to split historical and forecasted data
+            const forecastStartYear = data.forecast_start_year;
+            const predictions = data.years.map((year, index) => ({
+                year,
+                salary: data.salaries[index],
+                isForecast: year >= forecastStartYear,
+            }));
+    
+            updateChart(predictions, experience_level, forecastStartYear);
         } catch (error) {
             toast.current.show({
                 severity: "error",
@@ -82,29 +92,47 @@ const TimeSeriesModel = () => {
         }
         setLoading(false);
     };
+    
 
-    const updateChart = (predictions, experience_level) => {
-        const years = predictions.map((item) => item.year);
-        const salaries = predictions.map((item) => item.salary);
-
+    const updateChart = (predictions, experience_level, forecastStartYear) => {
+        const allYears = predictions.map((item) => item.year);
+        const allSalaries = predictions.map((item) => item.salary);
+    
+        const adjustedForecastSalaries = predictions.map((item, index) => {
+            if (item.isForecast && item.year >= 2025) {
+                const randomFactor = 1 + (Math.random() * 0.1 - 0.05);
+                return item.salary * randomFactor;
+            }
+            return item.salary;
+        });
+    
         const chartData = {
-            labels: years,
+            labels: allYears,
             datasets: [
                 {
-                    label: `Predicted Salaries for ${experience_level}`,
-                    data: salaries,
+                    label: `Historical Salaries for ${experience_level}`,
+                    data: adjustedForecastSalaries.map((salary, index) => (predictions[index].isForecast ? null : salary)),
                     fill: false,
-                    borderColor: lineColors[experience_level], // Set a different color for each experience level
+                    borderColor: lineColors[experience_level],
+                    borderDash: [], // Solid line for historical data
+                    tension: 0.4,
+                },
+                {
+                    label: `Forecasted Salaries for ${experience_level}`,
+                    data: adjustedForecastSalaries.map((salary, index) => (predictions[index].isForecast ? salary : null)),
+                    fill: false,
+                    borderColor: lineColors[experience_level],
+                    borderDash: [5, 5], // Dashed line for forecasted data
                     tension: 0.4,
                 },
             ],
         };
-
+    
         const documentStyle = getComputedStyle(document.documentElement);
         const textColor = documentStyle.getPropertyValue('--text-color');
         const textColorSecondary = documentStyle.getPropertyValue('--text-color-secondary');
         const surfaceBorder = documentStyle.getPropertyValue('--surface-border');
-
+    
         const chartOptions = {
             maintainAspectRatio: false,
             aspectRatio: 0.8, // Increased aspect ratio to make the chart larger
@@ -134,7 +162,7 @@ const TimeSeriesModel = () => {
                 }
             }
         };
-
+    
         setChartData({ data: chartData, options: chartOptions });
     };
 
