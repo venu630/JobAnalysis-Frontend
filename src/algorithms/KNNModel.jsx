@@ -9,9 +9,9 @@ import { Panel } from "primereact/panel";
 import { jobTitles, residencies } from './dropdown_options/DropDownOptions'; // Import job titles and residencies
 
 const employmentTypes = [
-  { label: "Full-time", value: "Full-time" },
-  { label: "Part-time", value: "Part-time" },
-  { label: "Contract", value: "Contract" },
+  { label: "Full-time", value: "FT" },
+  { label: "Part-time", value: "PT" },
+  { label: "Contract", value: "CT" },
 ];
 
 const remoteRatios = [
@@ -21,9 +21,9 @@ const remoteRatios = [
 ];
 
 const companySizes = [
-  { label: "Small (1-50 employees)", value: "S" },
-  { label: "Medium (51-250 employees)", value: "M" },
-  { label: "Large (250+ employees)", value: "L" },
+  { label: "Small", value: "S" },
+  { label: "Medium", value: "M" },
+  { label: "Large", value: "L" },
 ];
 
 // Mapping experience levels to full names
@@ -183,13 +183,6 @@ const KNNModel = () => {
                   <p>
                     <strong>Predicted Experience Level:</strong> {predictedExperience}
                   </p>
-                  {imageData && (
-                    <img
-                      src={`data:image/png;base64,${imageData}`}
-                      alt="Prediction Result"
-                      style={{ width: "100%", height: "auto", marginTop: "1em" }}
-                    />
-                  )}
                 </div>
               ) : (
                 <p className="p-text-center">Submit the form to view prediction results.</p>
