@@ -15,9 +15,15 @@ const experienceLevels = [
     { label: "Executive-level / Director", value: "EX" },
 ];
 
-// Generate Year Range from 2020 to 2030
-const yearOptions = Array.from({ length: 2030 - 2020 + 1 }, (_, index) => {
+// Generate Year Range for Start Year (2020 to 2024)
+const startYearOptions = Array.from({ length: 2024 - 2020 + 1 }, (_, index) => {
     const year = 2020 + index;
+    return { label: year.toString(), value: year };
+});
+
+// Generate Year Range for End Year (2025 to 2030)
+const endYearOptions = Array.from({ length: 2030 - 2025 + 1 }, (_, index) => {
+    const year = 2025 + index;
     return { label: year.toString(), value: year };
 });
 
@@ -46,42 +52,42 @@ const TimeSeriesModel = () => {
     const handleSubmit = async () => {
         setLoading(true);
         const { start_year, end_year, experience_level } = formData;
-    
+
         try {
             if (!start_year || !end_year || !experience_level) {
                 throw new Error("Please fill out all fields before submitting.");
             }
-    
+
             if (start_year > end_year) {
                 throw new Error("Start year cannot be greater than end year.");
             }
-    
-            // Make a single request to the backend for the specified range
+
+            // Make a request to the backend
             const response = await fetch("http://127.0.0.1:5000/timeseries_predict", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ start_year, end_year, experience_level }),
             });
-    
-            if (!response.ok) {
-                throw new Error(`Error fetching prediction data`);
-            }
-    
+
             const data = await response.json();
-    
-            // Ensure data is not null or undefined before parsing
+
+            if (!response.ok) {
+                throw new Error(data.error || "Error fetching prediction data");
+            }
+
+            // Ensure data is valid
             if (!data || !data.years || !data.salaries) {
                 throw new Error("Invalid data received from the backend.");
             }
-    
+
             // Parse response to split historical and forecasted data
             const forecastStartYear = data.forecast_start_year;
             const predictions = data.years.map((year, index) => ({
                 year,
                 salary: data.salaries[index],
-                isForecast: year >= forecastStartYear,
+                isForecast: forecastStartYear !== null ? year >= forecastStartYear : false,
             }));
-    
+
             updateChart(predictions, experience_level, forecastStartYear);
         } catch (error) {
             toast.current.show({
@@ -92,26 +98,20 @@ const TimeSeriesModel = () => {
         }
         setLoading(false);
     };
-    
 
     const updateChart = (predictions, experience_level, forecastStartYear) => {
         const allYears = predictions.map((item) => item.year);
-        const allSalaries = predictions.map((item) => item.salary);
-    
-        const adjustedForecastSalaries = predictions.map((item, index) => {
-            if (item.isForecast && item.year >= 2025) {
-                const randomFactor = 1 + (Math.random() * 0.1 - 0.05);
-                return item.salary * randomFactor;
-            }
-            return item.salary;
-        });
-    
+
+        // Separate historical and forecasted salaries
+        const historicalSalaries = predictions.map((item) => item.isForecast ? null : item.salary);
+        const forecastedSalaries = predictions.map((item) => item.isForecast ? item.salary : null);
+
         const chartData = {
             labels: allYears,
             datasets: [
                 {
                     label: `Historical Salaries for ${experience_level}`,
-                    data: adjustedForecastSalaries.map((salary, index) => (predictions[index].isForecast ? null : salary)),
+                    data: historicalSalaries,
                     fill: false,
                     borderColor: lineColors[experience_level],
                     borderDash: [], // Solid line for historical data
@@ -119,7 +119,7 @@ const TimeSeriesModel = () => {
                 },
                 {
                     label: `Forecasted Salaries for ${experience_level}`,
-                    data: adjustedForecastSalaries.map((salary, index) => (predictions[index].isForecast ? salary : null)),
+                    data: forecastedSalaries,
                     fill: false,
                     borderColor: lineColors[experience_level],
                     borderDash: [5, 5], // Dashed line for forecasted data
@@ -127,15 +127,15 @@ const TimeSeriesModel = () => {
                 },
             ],
         };
-    
+
         const documentStyle = getComputedStyle(document.documentElement);
         const textColor = documentStyle.getPropertyValue('--text-color');
         const textColorSecondary = documentStyle.getPropertyValue('--text-color-secondary');
         const surfaceBorder = documentStyle.getPropertyValue('--surface-border');
-    
+
         const chartOptions = {
             maintainAspectRatio: false,
-            aspectRatio: 0.8, // Increased aspect ratio to make the chart larger
+            aspectRatio: 0.8,
             plugins: {
                 legend: {
                     labels: {
@@ -162,7 +162,7 @@ const TimeSeriesModel = () => {
                 }
             }
         };
-    
+
         setChartData({ data: chartData, options: chartOptions });
     };
 
@@ -183,7 +183,7 @@ const TimeSeriesModel = () => {
                                         <span className="p-float-label">
                                             <Dropdown
                                                 value={formData.start_year}
-                                                options={yearOptions}
+                                                options={startYearOptions}
                                                 onChange={(e) => handleDropdownChange("start_year", e.value)}
                                             />
                                             <label htmlFor="start_year">Start Year</label>
@@ -193,7 +193,7 @@ const TimeSeriesModel = () => {
                                         <span className="p-float-label">
                                             <Dropdown
                                                 value={formData.end_year}
-                                                options={yearOptions}
+                                                options={endYearOptions}
                                                 onChange={(e) => handleDropdownChange("end_year", e.value)}
                                             />
                                             <label htmlFor="end_year">End Year</label>
